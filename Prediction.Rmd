@@ -1,0 +1,89 @@
+---
+title: 'Practical Machine Learning'
+author: "Alphaeus Dmonte"
+date: "29/05/2020"
+output: html_document
+---
+## Loading and cleaning data  
+
+### Load the required libraries  
+```{r echo=TRUE}
+library(lattice); library(ggplot2); library(caret); library(randomForest); library(rpart); library(rpart.plot);
+```
+
+### Loading and cleaning the dataset  
+
+```{r echo=TRUE}
+set.seed(1234)
+
+# load dataset
+trainset <- read.csv("pml-training.csv", na.strings=c("NA","#DIV/0!",""))
+testset <- read.csv("pml-testing.csv", na.strings=c("NA","#DIV/0!", ""))
+
+#remove columns with na values
+trainset <- trainset[,colSums(is.na(trainset)) == 0]
+testset <- testset[,colSums(is.na(testset)) == 0]
+
+# deleting irrelevant variables
+trainset <- trainset[,-c(1:7)]
+testset <- testset[,-c(1:7)]
+
+# partition the trainset data into training and testing set.
+trains <- createDataPartition(y=trainset$classe, p=0.70, list=FALSE)
+training <- trainset[trains,]
+testing <- trainset[-trains,]
+
+#histogram for classe variable
+plot(as.factor(training$classe), col="blue", main="Histogram for classe variable for train set", xlab = "classe", ylab = "Frequency")
+```
+
+Based on the graph above, we can see that each level frequency is within the same order of magnitude of each other. Level A is the most frequent while level D is the least frequent.  
+
+## Prediction With Decision Tree  
+
+```{r echo=TRUE}
+mod1 <- rpart(classe~., data=training, method="class")
+
+prediction1 <- predict(mod1, testing, type="class")
+
+rpart.plot(mod1, main="Classification Tree", extra=102, under=TRUE, faclen=0)
+```
+
+```{r echo=TRUE}
+confusionMatrix(prediction1, as.factor(testing$classe))
+```
+
+## Prediction With Random Forest  
+
+```{r echo=TRUE}
+mod2 <- randomForest(as.factor(classe)~., data = training, method = "class")
+
+prediction2 <- predict(mod2, testing, type="class")
+
+confusionMatrix(prediction2, as.factor(testing$classe))
+```
+
+## Selection of Prediction Model  
+
+According to the results obtained above, Random Forest has an accuracy of 99.59 %, while Decision Tree has an accuracy of 75.41 %. Hence we choose random forest for further prediction.  
+
+## Submission  
+
+Below is the output for the testset based on Random Forest prediction model.  
+
+```{r echo=TRUE}
+predictfinal <- predict(mod2, testset, type = "class")
+predictfinal
+```
+
+```{r}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(predictfinal)
+```
